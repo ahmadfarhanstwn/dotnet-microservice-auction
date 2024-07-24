@@ -8,7 +8,7 @@ var builder = WebApplication.CreateBuilder(args);
 
 builder.Services.AddControllers();
 builder.Services.AddAutoMapper(AppDomain.CurrentDomain.GetAssemblies());
-builder.Services.AddHttpClient<AuctionSrvClient>().AddPolicyHandler(GetPolicy());
+// builder.Services.AddHttpClient<AuctionSrvClient>().AddPolicyHandler(GetPolicy());
 builder.Services.AddMassTransit(x => 
 {
     x.AddConsumersFromNamespaceContaining<AuctionCreatedCustomer>();
@@ -36,8 +36,8 @@ app.Lifetime.ApplicationStarted.Register(async () =>
 
 app.Run();
 
-static IAsyncPolicy<HttpResponseMessage> GetPolicy()
-    => HttpPolicyExtensions
-        .HandleTransientHttpError()
-        .OrResult(msg => msg.StatusCode == HttpStatusCode.NotFound)
-        .WaitAndRetryForeverAsync(_ => TimeSpan.FromSeconds(3));
+// static IAsyncPolicy<HttpResponseMessage> GetPolicy()
+//     => HttpPolicyExtensions
+//         .HandleTransientHttpError()
+//         .OrResult(msg => msg.StatusCode == HttpStatusCode.NotFound)
+//         .WaitAndRetryForeverAsync(_ => TimeSpan.FromSeconds(3));
