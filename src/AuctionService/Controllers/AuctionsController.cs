@@ -79,6 +79,8 @@ public class AuctionsController : ControllerBase
         auction.Item.Color = updateAuctionDTO.Color ?? auction.Item.Color;
         auction.Item.Year = updateAuctionDTO.Year ?? auction.Item.Year;
 
+        await _publishEndpoint.Publish<AuctionUpdated>(_mapper.Map<AuctionUpdated>(auction));
+
         var result = await _context.SaveChangesAsync() > 0;
         if (result) return Ok();
         return BadRequest("Problem saving changed");
@@ -90,6 +92,8 @@ public class AuctionsController : ControllerBase
         var auction = await _context.Auctions.FindAsync(id);
 
         if (auction == null) return NotFound();
+
+        await _publishEndpoint.Publish<AuctionDeleted>(new AuctionDeleted{Id = auction.Id.ToString()});
 
         _context.Auctions.Remove(auction);
 
