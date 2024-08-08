@@ -25,7 +25,7 @@ services:
     image: ahmadfarhanstwn/auction-service:latest
     build:
       context: .
-      dockerfile: src/AuctionService/dockerfile
+      dockerfile: src/AuctionService/Dockerfile
     environment:
       - ASPNETCORE_ENVIRONMENT=Development
       - ASPNETCORE_URLS=http://+:80
@@ -41,7 +41,7 @@ services:
     image: ahmadfarhanstwn/search-service:latest
     build:
       context: .
-      dockerfile: src/SearchService/dockerfile
+      dockerfile: src/SearchService/Dockerfile
     environment:
       - ASPNETCORE_ENVIRONMENT=Development
       - ASPNETCORE_URLS=http://+:80
@@ -57,7 +57,7 @@ services:
     image: ahmadfarhanstwn/identity-service:latest
     build:
       context: .
-      dockerfile: src/IdentityService/dockerfile
+      dockerfile: src/IdentityService/Dockerfile
     environment:
       - ASPNETCORE_ENVIRONMENT=Development
       - ASPNETCORE_URLS=http://+:80
@@ -66,3 +66,13 @@ services:
       - 5000:80
     depends_on:
       - postgres
+  gateway-service:
+    image: ahmadfarhanstwn/gateway-service:latest
+    build:
+      context: .
+      dockerfile: src/GatewayService/Dockerfile
+    environment:
+      - ASPNETCORE_ENVIRONMENT=Docker
+      - ASPNETCORE_URLS=http://+:80
+    ports:
+      - 6001:80
