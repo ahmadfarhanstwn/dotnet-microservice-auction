@@ -1,11 +1,16 @@
 using System;
+using System.Xml.Linq;
 using AuctionService.Controllers;
 using AuctionService.Data;
 using AuctionService.DTOs;
+using AuctionService.Entities;
 using AuctionService.RequestHelpers;
+using AuctionService.UnitTests.Utils;
 using AutoFixture;
 using AutoMapper;
 using MassTransit;
+using Microsoft.AspNetCore.Http;
+using Microsoft.AspNetCore.Http.HttpResults;
 using Microsoft.AspNetCore.Mvc;
 using Moq;
 
@@ -30,7 +35,13 @@ public class AuctionControllerTests
             mc.AddMaps(typeof(MappingProfiles).Assembly);
         }).CreateMapper().ConfigurationProvider;
         _mapper = new Mapper(mockMapper);
-        _auctionsController = new AuctionsController(_auctionRepository.Object, _mapper, _publishEndpoint.Object);
+        _auctionsController = new AuctionsController(_auctionRepository.Object, _mapper, _publishEndpoint.Object)
+        {
+            ControllerContext = new ControllerContext
+            {
+                HttpContext = new DefaultHttpContext{User = Helpers.GetClaimsPrincipal()}
+            }
+        };
     }
 
     [Fact]
@@ -74,5 +85,133 @@ public class AuctionControllerTests
 
         //assert
         Assert.IsType<NotFoundResult>(result.Result);
+    }
+
+    [Fact]
+    public async Task CreateAuction_WithValidActionDto_ReturnCreatedAtAction()
+    {
+        //arrange
+        var auctionDto = _fixture.Create<CreateAuctionDTO>();
+        _auctionRepository.Setup(repo => repo.AddAuction(It.IsAny<Auction>()));
+        _auctionRepository.Setup(repo => repo.SaveChangesAsync()).ReturnsAsync(true);
+
+        //act
+        var result = await _auctionsController.CreateAuction(auctionDto);
+        var createdResult = result.Result as CreatedAtActionResult;
+
+        //assert
+        Assert.NotNull(createdResult);
+        Assert.Equal("GetAuctionById", createdResult.ActionName);
+        Assert.IsType<AuctionDTO>(createdResult.Value);
+    }
+
+    [Fact]
+    public async Task CreateAuction_FailedSave_Returns400BadRequest()
+    {
+        //arrange
+        var auctionDto = _fixture.Create<CreateAuctionDTO>();
+        _auctionRepository.Setup(repo => repo.AddAuction(It.IsAny<Auction>()));
+        _auctionRepository.Setup(repo => repo.SaveChangesAsync()).ReturnsAsync(false);
+
+        //act
+        var result = await _auctionsController.CreateAuction(auctionDto);
+
+        //assert
+        Assert.IsType<BadRequestObjectResult>(result.Result);
+    }
+
+    [Fact]
+    public async Task UpdateAuction_WithUpdateAuctionDto_ReturnsOkResponse()
+    {
+        //arrange
+        var auction = _fixture.Build<Auction>().Without(x => x.Item).Create();
+        auction.Item = _fixture.Build<Item>().Without(x => x.Auction).Create();
+        auction.Seller = _auctionsController.User.Identity.Name;
+        var updateAuctionDTO = _fixture.Create<UpdateAuctionDTO>();
+        _auctionRepository.Setup(repo => repo.GetAuctionEntityByIdAsync(It.IsAny<Guid>())).ReturnsAsync(auction);
+        _auctionRepository.Setup(repo => repo.SaveChangesAsync()).ReturnsAsync(true);
+
+        //act
+        var result = await _auctionsController.UpdateAuction(Guid.NewGuid(), updateAuctionDTO);
+
+        //assert
+        Assert.IsType<OkResult>(result);
+    }
+
+    [Fact]
+    public async Task UpdateAuction_WithInvalidUser_Returns403Forbid()
+    {
+        //arrange
+        var auction = _fixture.Build<Auction>().Without(x => x.Item).Create();
+        auction.Item = _fixture.Build<Item>().Without(x => x.Auction).Create();
+        var updateAuctionDTO = _fixture.Create<UpdateAuctionDTO>();
+        _auctionRepository.Setup(repo => repo.GetAuctionEntityByIdAsync(It.IsAny<Guid>())).ReturnsAsync(auction);
+        _auctionRepository.Setup(repo => repo.SaveChangesAsync()).ReturnsAsync(true);
+
+        //act
+        var result = await _auctionsController.UpdateAuction(Guid.NewGuid(), updateAuctionDTO);
+
+        //assert
+        Assert.IsType<ForbidResult>(result);
+    }
+
+    [Fact]
+    public async Task UpdateAuction_WithInvalidGuid_ReturnsNotFound()
+    {
+        var updateAuctionDTO = _fixture.Create<UpdateAuctionDTO>();
+        _auctionRepository.Setup(repo => repo.GetAuctionEntityByIdAsync(It.IsAny<Guid>())).ReturnsAsync(value: null);
+        _auctionRepository.Setup(repo => repo.SaveChangesAsync()).ReturnsAsync(true);
+
+        //act
+        var result = await _auctionsController.UpdateAuction(Guid.NewGuid(), updateAuctionDTO);
+
+        //assert
+        Assert.IsType<NotFoundResult>(result);
+    }
+
+    [Fact]
+    public async Task DeleteAuction_WithValidUser_ReturnsOkResponse()
+    {
+        //arrange
+        var auction = _fixture.Build<Auction>().Without(x => x.Item).Create();
+        auction.Item = _fixture.Build<Item>().Without(x => x.Auction).Create();
+        auction.Seller = _auctionsController.User.Identity.Name;
+        _auctionRepository.Setup(repo => repo.GetAuctionEntityByIdAsync(It.IsAny<Guid>())).ReturnsAsync(auction);
+        _auctionRepository.Setup(repo => repo.RemoveAuction(auction));
+        _auctionRepository.Setup(repo => repo.SaveChangesAsync()).ReturnsAsync(true);
+
+        //act
+        var result = await _auctionsController.DeleteAuction(Guid.NewGuid());
+
+        //assert
+        Assert.IsType<OkResult>(result);
+    }
+
+    [Fact]
+    public async Task DeleteAuction_WithInvalidGuid_Returns404Response()
+    {
+        //arrange
+        _auctionRepository.Setup(repo => repo.GetAuctionEntityByIdAsync(It.IsAny<Guid>())).ReturnsAsync(value : null);
+
+        //act
+        var result = await _auctionsController.DeleteAuction(Guid.NewGuid());
+
+        //assert
+        Assert.IsType<NotFoundResult>(result);
+    }
+
+    [Fact]
+    public async Task DeleteAuction_WithInvalidUser_Returns403Response()
+    {
+        //arrange
+        var auction = _fixture.Build<Auction>().Without(x => x.Item).Create();
+        auction.Item = _fixture.Build<Item>().Without(x => x.Auction).Create();
+        _auctionRepository.Setup(repo => repo.GetAuctionEntityByIdAsync(It.IsAny<Guid>())).ReturnsAsync(auction);
+
+        //act
+        var result = await _auctionsController.DeleteAuction(Guid.NewGuid());
+
+        //assert
+        Assert.IsType<ForbidResult>(result);
     }
 }
