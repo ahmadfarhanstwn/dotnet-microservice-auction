@@ -99,6 +99,49 @@ public class AuctionControllerTests : IClassFixture<CustomWebappFactory>, IAsync
         Assert.Equal("bob", createdAuction.Seller);
     }
 
+    [Fact]
+    public async Task CreateAuction_WithInvalidCreateAuctionDto_ShouldReturn400()
+    {
+         // Arrange
+        var auctionDto = GetInvalidAuctionForCreate();
+        _httpClient.SetFakeJwtBearerToken(AuthHelper.GetBearerForUser("bob"));
+
+        // Act
+        var response = await _httpClient.PostAsJsonAsync("api/auctions", auctionDto);
+    
+        // Assert
+        Assert.Equal(HttpStatusCode.BadRequest, response.StatusCode);
+    }
+
+    [Fact]
+    public async Task UpdateAuction_WithValidUpdateDtoAndUser_ShouldReturn200()
+    {
+        // arrange
+        var auctionDto = GetValidAuctionFoUpdate();
+        _httpClient.SetFakeJwtBearerToken(AuthHelper.GetBearerForUser("bob"));
+
+        // act
+        var response = await _httpClient.PutAsJsonAsync($"api/auctions/{GT_ID}", auctionDto);
+
+        // assert
+        response.EnsureSuccessStatusCode();
+        Assert.Equal(HttpStatusCode.OK, response.StatusCode);
+    }
+
+    [Fact]
+    public async Task UpdateAuction_WithValidUpdateDtoAndInvalidUser_ShouldReturn403()
+    {
+        // arrange
+        var auctionDto = GetValidAuctionFoUpdate();
+        _httpClient.SetFakeJwtBearerToken(AuthHelper.GetBearerForUser("mulyono"));
+
+        // act
+        var response = await _httpClient.PutAsJsonAsync($"api/auctions/{GT_ID}", auctionDto);
+
+        // assert
+        Assert.Equal(HttpStatusCode.Forbidden, response.StatusCode);
+    }
+
     public Task InitializeAsync() => Task.CompletedTask;
 
     public Task DisposeAsync()
@@ -120,6 +163,32 @@ public class AuctionControllerTests : IClassFixture<CustomWebappFactory>, IAsync
             Mileage = 10,
             Year = 10,
             ReservePrice = 10
+        };
+    }
+
+    private CreateAuctionDTO GetInvalidAuctionForCreate()
+    {
+        return new CreateAuctionDTO
+        {
+            Make = null,
+            Model = "testModel",
+            ImageUrl = "testimageurl",
+            Color = "testcolor",
+            Mileage = 10,
+            Year = 10,
+            ReservePrice = 10
+        };
+    }
+
+    private UpdateAuctionDTO GetValidAuctionFoUpdate()
+    {
+        return new UpdateAuctionDTO
+        {
+            Make = "testMake",
+            Model = "testModel",
+            Year = 2030,
+            Color = "testColor",
+            Mileage = 20000
         };
     }
 }
