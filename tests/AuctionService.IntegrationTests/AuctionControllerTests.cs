@@ -9,7 +9,8 @@ using Microsoft.Extensions.DependencyInjection;
 
 namespace AuctionService.IntegrationTests;
 
-public class AuctionControllerTests : IClassFixture<CustomWebappFactory>, IAsyncLifetime
+[Collection("Shared Collection")]
+public class AuctionControllerTests : IAsyncLifetime
 {
     private readonly CustomWebappFactory _factory;
     private readonly HttpClient _httpClient;
