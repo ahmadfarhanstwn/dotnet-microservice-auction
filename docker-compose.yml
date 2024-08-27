@@ -21,6 +21,11 @@ services:
     ports:
       - 5672:5672
       - 15672:15672
+    healthcheck:
+      test: ["CMD", "rabbitmqctl", "status"]
+      interval: 2s
+      timeout: 3s
+      retries: 10
   auction-service:
     image: ahmadfarhanstwn/auction-service:latest
     build:
@@ -35,8 +40,10 @@ services:
     ports:
       - 7001:80
     depends_on:
-      - rabbitmq
-      - postgres
+      rabbitmq:
+        condition: service_healthy
+      postgres:
+        condition: service_started
   search-service:
     image: ahmadfarhanstwn/search-service:latest
     build:
@@ -51,8 +58,10 @@ services:
     ports:
       - 7002:80
     depends_on:
-      - rabbitmq
-      - mongodb
+      rabbitmq:
+        condition: service_healthy
+      mongodb:
+        condition: service_started
   identity-service:
     image: ahmadfarhanstwn/identity-service:latest
     build:
